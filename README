@@ -1,5 +1,5 @@
 ==============================================================================
-             Release of version 0.01 of Lingua::Romana::Perligata
+             Release of version 0.50 of Lingua::Romana::Perligata
 ==============================================================================
 
 
@@ -55,13 +55,33 @@ IUS TRANSCRIBENDI
 
 ==============================================================================
 
-MUTATIONES IN EDITIO 0.01
+CHANGES IN VERSION 0.50
 
-(No changes have been documented for this version)
+
+	- Fixed handling of 'posterus', 'ultimus' etc.
+
+	- Fixed handling of 'si' (thanks James)
+
+	- Added 'itera' for 'x' (thanks James)
+
+	- Added the 'dictum sic..cis' construct for q{...} (thanks Peter)
+
+	- Added "consocia" for &, "interseca" for |, and "discerne" for ^.
+
+	- Add "cum" as precedence disambiguator
+
+	- Fixed "sere" so that it doesn't space what it joins (thanks Philip)
+
+	- Numerous documentation patches (thanks Todd and Philip)
+
+	- Added "come" to convert numbers to roman numerals (thanks Anselm)
+
+	- Added roman numerals up to 9,999,999,999 (thanks Anselm)
+
 
 ==============================================================================
 
-ADITUS
+AVAILABILITY
 
 Lingua::Romana::Perligata has been uploaded to the CPAN
 and is also available from:

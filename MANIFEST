@@ -1,0 +1,14 @@
+Makefile.PL
+MANIFEST
+README
+test.pl
+demo/demo_OO.pl
+demo/demo_compare.pl
+demo/demo_data.pl
+demo/demo_eratosthenes.pl
+demo/demo_logical.pl
+demo/demo_number.pl
+demo/demo_reference.pl
+demo/demo_simple.pl
+demo/demo_bitwise.pl
+lib/Lingua/Romana/Perligata.pm

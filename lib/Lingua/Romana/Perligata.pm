@@ -1,7 +1,7 @@
 package Lingua::Romana::Perligata;
 $DB::single=$DB::single=1;
 
-$VERSION = '0.01';
+$VERSION = '0.50';
 
 use Filter::Util::Call;
 use IO::Handle;
@@ -58,38 +58,49 @@ sub adversum { " ad versum " . to_rn($_[0]->{line}) . "\n" }
 sub readversum { $_[0] =~ m{(.*)at\s+(\S+)\s+line\s+(\d+)(.*)}s or return $_[0];
 		 return $1 . " ad $2 versum " . to_rn($3) . $4 }
 
-my @unit = ( "" , qw ( I II III IV V VI VII VIII IX ));
-my @ten  = ( "" , qw ( X XX XXX XL L LX LXX LXXX XC ));
-my @hund = ( "" , qw ( C CC CCC CD D DC DCC DCCC CM ));
-my @thou = ( "" , qw ( M MM MMM                     ));
+sub make_range {
+	my ($unit, $five, $ten) = @_;
+	my ($two, $three) = ($unit x 2, $unit x 3);
+	return [ "", $unit, $two, $three, $unit.$five, $five,
+		 $five.$unit, $five.$two, $five.$three, $unit.$ten ];
+}
+
+my @order = (
+	make_range(qw{         I         V                  X          }),
+	make_range(qw{         X         L                  C          }),
+	make_range(qw{         C         D                  M          }),
+	make_range(qw{         M         I))              ((I))        }),
+	make_range(qw{       ((I))       I)))            (((I)))       }),
+	make_range(qw{      (((I)))      I))))          ((((I))))      }),
+	make_range(qw{     ((((I))))     I)))))        (((((I)))))     }),
+	make_range(qw{    (((((I)))))    I))))))      ((((((I))))))    }),
+	make_range(qw{   ((((((I))))))   I)))))))    (((((((I)))))))   }),
+	make_range(qw{  (((((((I)))))))  I))))))))  ((((((((I))))))))  }),
+);
 
 my %val;
-@val{@unit[0..9]} = (0..9);
-@val{@ten[0..9]}  = map {10*$_} (0..9);
-@val{@hund[0..9]} = map {100*$_} (0..9);
-@val{@thou[0..3]} = map {1000*$_} (0..9);
+foreach my $power (0..$#order) {
+	@val{@{$order[$power]}} = map {$_*10**$power} 0..9;
+}
 
-# my $roman = '(?=[IVXLCDN]+\b)('
-# 	  . join("|)(", join("|",reverse(@thou[1..3])),
-# 			join("|",reverse @hund[1..9]),
-#                        join("|",reverse @ten[1..9]),
-# 			join("|",reverse @unit[1..9]) ) . '|)';
-
-my $roman = '('
-	  . join("|)(", join("|",reverse(@thou[1..3])),
-			join("|",reverse @hund[1..9]),
-                        join("|",reverse @ten[1..9]),
- 			join("|",reverse @unit[1..9]) ) . '|)';
+my $roman = '(' . join(")(", map {join("|",map { quotemeta } reverse(@$_))} reverse @order) . '|)';
 
 sub from_rn {
 	my $val = shift;
-	$val =~ /($roman)/ix and length $1 or return;
-	return $val{uc $2} + $val{uc $3} + $val{uc $4} + $val{uc $5};
+	@numerals = $val =~ /(?:$roman)/ix;
+	join("",@numerals) eq $val or return $val;
+	my $an = 0;
+	$an += $val{$_} foreach @numerals;
+	return $an;
 }
 
 sub to_rn {
-	return $_[0] unless $_[0] =~ /^([0-3]??)(\d??)(\d??)(\d)$/;
-	return $thou[$1||0] . $hund[$2||0] . $ten[$3||0] . $unit[$4||0];
+	@digits = split '', $_[0];
+	return $_[0] if grep {/\D/} @digits;
+	my $power = 0;
+	my $rn = "";
+	$rn = $order[$power++][$_||0] . $rn foreach reverse @digits;
+	return $rn;
 }
 
 sub multibless(\%$$)
@@ -137,7 +148,6 @@ my %literals =
 	'biguttam'	=> { perl => '":"' },
 	'lacunam'	=> { perl => '" "' },
 	'stadium'	=> { perl => '"\t"' },
-	'biguttam'	=> { perl => '":"' },
 	'parprimum'	=> { perl => '$1' },
 	'pardecimum'	=> { perl => '$10' },
 	'parsecundum'	=> { perl => '$2' },
@@ -275,9 +285,13 @@ my %ops =
 	'adde'		=> { perl => '+' },
 	'deme'		=> { perl => '-' },
 	'multiplica'	=> { perl => '*' },
+	'itera'		=> { perl => 'x' },
 	'divide'	=> { perl => '/' },
 	'recide'	=> { perl => '%' },
 	'eleva'		=> { perl => '**' },
+	'consocia'	=> { perl => '&' },
+	'interseca'	=> { perl => '|' },
+	'discerne'	=> { perl => '^' },
 	'depone'	=> { perl => '' , prefix => 1 },
 );
 
@@ -425,6 +439,7 @@ my %funcs_d =
 	'admeta'	=> { perl => 'Lingua::Romana::Perligata::__lastelem__' },
 	'inque'		=> { perl => 'Lingua::Romana::Perligata::__enquote__' },
 	'conscribe'	=> { perl => 'Lingua::Romana::Perligata::__enlist__' },
+	'come'    	=> { perl => 'Lingua::Romana::Perligata::to_rn' },
 	'priva'		=> { perl => 'abs' },
 	'angula'	=> { perl => 'atan2' },
 	'oppone'	=> { perl => 'sin' },
@@ -489,7 +504,7 @@ my %funcs_d =
 	'inscribe'	=> { perl => ':' },	# SPECIAL: SEE BELOW
 	'arcesse'	=> { perl => '${' },	# SPECIAL: SEE BELOW
 
-	'sere'		=> { perl => 'Lingua::Romana::Perligata::__enquote__' },
+	'sere'		=> { perl => 'Lingua::Romana::Perligata::__encatenate__' },
 );
 
 multibless %funcs_d, 'Function', 'SUBNAME_A';
@@ -524,9 +539,6 @@ $funcs_d{'arcessementuum'}  = { %{$funcs_d{'arcessementus'}},
 my %funcs_dl =
 (
 	'adi'		=> { perl => 'goto' },
-	'ultimus'	=> { perl => 'last' },
-	'posterus'	=> { perl => 'next' },
-	'reconnatus'	=> { perl => 'redo' },
 	'confectus'	=> { perl => 'continue' },
 	'domus'		=> { perl => 'package' },
 	'ute'		=> { perl => 'use' },
@@ -535,15 +547,26 @@ my %funcs_dl =
 multibless %funcs_dl, 'Function_Lit', 'SUBNAME_A';
 addres %funcs_dl, 'Function_Lit', 'SUBNAME_A';
 
+my %funcs_dlo =
+(
+	'ultimus'	=> { perl => 'last' },
+	'posterus'	=> { perl => 'next' },
+	'reconnatus'	=> { perl => 'redo' },
+);
+
+multibless %funcs_dlo, 'Function_Lit', 'SUBNAME_OA';
+# addres %funcs_dl, 'Function_Lit', 'SUBNAME_OA';
+
 my %misc  =
 (
 	'fac'		=> { lex => 'DO',		perl => 'do' },
 	'per'		=> { lex => 'FOR',		perl => 'for' },
 	'per quisque'	=> { lex => 'FOR',		perl => 'foreach' },
-	'si'		=> { lex => 'IF',		perl => 'if' },
+	'si'		=> { lex => 'CONTROL',		perl => 'if' },
 	'nisi'		=> { lex => 'CONTROL',		perl => 'unless' },
 	'donec'		=> { lex => 'CONTROL',		perl => 'until' },
 	'dum'		=> { lex => 'CONTROL',		perl => 'while' },
+	'cum'		=> { lex => 'WITH',		perl => '' },
 	'intra'		=> { lex => 'WITHIN',		perl => '::' },
 	'apud'		=> { lex => 'ARROW',		perl => '->' },
 	'tum'		=> { lex => 'COMMA',		perl => ',' },
@@ -559,7 +582,8 @@ my %tokens =
 	%literals, %numerals, %underscores,
 	%numerals, %ordinals_a, %ordinals_d,
 	%varmods, %matchops, %ops, %lops, %invarops,
-	%funcs_td, %funcs_bd, %funcs_b, %funcs_t, %funcs_d, %funcs_dl,
+	%funcs_td, %funcs_bd, %funcs_b, %funcs_t,
+	%funcs_d, %funcs_dl, %funcs_dlo,
 	%misc, %streams,
 );
 
@@ -611,6 +635,16 @@ sub tokenize
 
 			print Lingua::Romana::Perlidata::DATASRC $2; 
 		}
+		elsif ($text =~ s/\Adic(?:emen)?tum(que|ve|)\s+sic\s+\b(.*?)\s+cis\b//s)
+		{
+			push @tokens, tokdup $connectives{$1} if $1;
+			push @tokens, token($2,'NAME',"$2",'Name');
+		}
+		elsif ($text =~ s/\Asic(que|ve|)\s+(.*?)\s+cis\s+dic(?:emen)?tum\b//s)
+		{
+			push @tokens, tokdup $connectives{$1} if $1;
+			push @tokens, token($2,'NAME',"$2",'Name');
+		}
 		elsif ($text =~ s/\A(atque|vel)\b//)
 		{
 			push @tokens, tokdup $misc{'tum'};
@@ -618,17 +652,17 @@ sub tokenize
 		}
 		elsif ($text =~ s/\A(($roman)im(?:o|ae)(que|ve|))\b//x && length $2)
 		{
-			push @tokens, tokdup $connectives{$7} if $7;
+			push @tokens, tokdup $connectives{$+} if $+;
 			push @tokens, token($1,'ORDINAL_DATIVE',from_rn($2),'ORDINAL_DATIVE');
 		}
 		elsif ($text =~ s/\A(($roman)im(?:um|os|am|as)(que|ve|))\b//x && length $2)
 		{
-			push @tokens, tokdup $connectives{$7} if $7;
+			push @tokens, tokdup $connectives{$+} if $+;
 			push @tokens, token($1,'ORDINAL',from_rn($2),'ORDINAL');
 		}
 		elsif ($text =~ s/\A(($roman)(que|ve|))\b//x && length $2)
 		{
-			push @tokens, tokdup $connectives{$7} if $7;
+			push @tokens, tokdup $connectives{$+} if $+;
 			push @tokens, token($1,'NUMERAL',from_rn($2),'NUMERAL');;
 		}
 		elsif ($text =~ s/$tokensque//)
@@ -793,6 +827,7 @@ sub command {
 	my (@Bstack, @Dstack, @Vstack, $Vdone);
 	my $Dindir = 0;
 	my @lastsubstantive;
+	my $empty = 1;
 
 	my $reduce;
 	my $Astack_push = sub {
@@ -890,6 +925,10 @@ sub command {
 			  $lastownable = \@Dstack;
 			  push @lastsubstantive, $lastownable;
 			}
+		elsif ($tok->{lex} eq 'WITH') {
+			push @Astack, { data=>[], complete=>0 };
+			shift @$toks;
+		}
 		elsif ($tok->{lex} =~ /^(?:ACCUSATIVE|NAME)$/
 		    || $Dindir && $tok->{lex} eq 'DATIVE')
 			{ if ($tok->{lex} eq 'DATIVE') {
@@ -1009,6 +1048,7 @@ sub command {
 			}
 	}
 	continue {
+		$empty = 0;
 		if ($debug) {
 			print "After '$tok->{raw}' ($tok->{lex}):\n";
 			print Data::Dumper->Dump([\@Vstack, \@Astack, \@Bstack, \@Dstack, \@lastsubstantive, \$lastownable, \$Vdone], [qw{Vstack Astack Bstack Dstack LastS LastO Vdone}]);
@@ -1027,8 +1067,10 @@ sub command {
 	die "Dativum non junctum: '$Dstack[-1]{raw}'" . adversum($Dstack[-1])
 		if @Dstack && !@Vstack;
 	die "Sententia imperfecta prope '$tok->{raw}'" . adversum($tok)
-		unless $Vdone;
-	return ref $Vdone eq 'ARRAY' ? $Vdone->[0] : $Vdone;
+		unless $Vdone || $empty;
+	return $empty			? $tok
+	       : ref $Vdone eq 'ARRAY'	? $Vdone->[0]
+	       :			  $Vdone;
 }	
 
 sub block
@@ -1094,8 +1136,8 @@ sub control
 	my ($toks, $Bstack) = @_;
 	my $self = shift @$toks;
 	$self->{C} = conn_command($toks,'DO');
-	if ($self->{perl} eq 'while' &&
-	    $self->{C}{V}{perl} eq 'IO::Handle::getline') {
+	if (($self->{perl}||"") eq 'while' &&
+	    ($self->{C}{V}{perl}||"") eq 'IO::Handle::getline') {
 		$self->{C}{V}{diamond} = 1;
 	}
 	if (!@$toks || $toks->[0]{lex} =~ /PERIOD|CONNECTIVE/) {
@@ -1117,6 +1159,10 @@ sub __enlist__ {
 
 sub __enquote__ {
 	return join " ", @_;
+}
+
+sub __encatenate__ {
+	return join "", @_;
 }
 
 sub __lastelem__(\@) {
@@ -1208,7 +1254,15 @@ sub CONNECTIVE::translate {
 	return $_[0]{L}->translate . " $_[0]{perl} " . $_[0]{R}->translate;
 }
 
+sub Separator::translate {
+	return $_[0]{perl};
+}
+
 sub SUBNAME::translate {
+	return $_[0]{perl};
+}
+
+sub SUBNAME_OA::translate {
 	return $_[0]{perl};
 }
 
@@ -1375,8 +1429,8 @@ Lingua::Romana::Perligata -- Perl in Latin
 
 =head1 EDITIO
 
-This document describes version 0.01 of Lingua::Romana::Perligata,
-released December  8, 2000.
+This document describes version 0.50 of Lingua::Romana::Perligata,
+released May  3, 2001.
 
 =head1 SUMMARIUM
 
@@ -1657,13 +1711,73 @@ Perligata is rendered via the verb I<admeta>:
 =head2 Comments
 
 In Perligata, comments are rendered by the verb I<adnota>
-("annotate"). For example:
+("annotate") and extend until the end of the line. For example:
 
 	nexto da prevum.    adnota mensuram antiquam reserva
 
 means:
 
 	$next = $prev;      # remember old amount
+
+
+=head2 Imposing precedence on argument lists
+
+The order-independence of argument lists and subroutine calls largely
+makes up for the lack of bracketing in Perligata. For example, the
+Perl statement:
+
+	$res = foo(bar($xray,$yell),$zip);
+
+can be written:
+
+	 reso da xrayum tum yellum barmentum tum zipum foomentum.
+
+Note that the lack of argument list brackets in Perligata
+means that if it were written: 
+	
+	reso da foomentum barmentum xrayum tum yellum tum zipum.
+
+it would be equivalent to:
+
+	$res = foo(bar($xray,$yell,$zip));
+
+instead.
+
+Likewise, it is possible to translate:
+
+	$res = foo($xray,bar($yell,$zip));
+
+like so:
+
+	reso da xrayum tum barmentum yellum tum zipum foomentum.
+
+But translating:
+
+	$res = foo($weld,bar($xray,$yell),$zip);
+
+presents a difficulty.
+
+In the first example above
+(I<xrayum tum yellum barmentum tum zipum foomentum>), the verb I<barmentum> was
+used as a suffix on I<xrayum tum yellum> -- to keep the variable I<zipum> out of
+the argument list of the call to C<bar>. In the second example
+(I<xrayum tum barmentum yellum tum zipum foomentum>), the verb
+I<barmentum> was used as a prefix on I<yellum tum zipum> -- to keep the
+variable I<xrayum> out of the argument list.
+
+But in this third example, it's necessary to keep both I<weldum> and I<zipum>
+out of C<bar>'s argument list. Unfortunately, I<barmentum> can't be both
+a prefix (to isolate I<weldum>) and a suffix (to isolate I<zipum>)
+simulataneous.
+
+The solution is to use the preposition I<cum> (meaning "with...") at the start
+of C<bar>'s argument list, with I<barmentum> as a suffix at the end of the
+list:
+
+        reso da foomentum weldum tum cum xrayum tum yellum barmentum tum zipum.
+
+It is always permissible to specify the start of a nested argument list with
+a I<cum>, so long as the governing verb is used as a suffix.
 
 
 =head2 Blocks and control structures
@@ -1685,7 +1799,7 @@ resist, Perligata delimits blocks of statements with these two words. For
 example:
 
         sic                                     # {
-            loco inanitori.                     #   local $/;
+            loco ianitori.                      #   local $/;
             dato nuntio perlegementum da.       #   $data = <DATA>;
         cis                                     # }
 
@@ -1761,28 +1875,62 @@ The C<__END__> and C<__DATA__> markers in Perligata are I<finis>
 after either of these markers is available via the input stream
 I<nuntio>. For example:
 
-        dum perlege nuntio fac sic		# while (<DATA>) {
-                scribe egresso hoc.		#	print $_;
-        cis					# }
-						#
-	finis					# __END__
-	post					# post
-	hoc					# hoc
-	ergo					# ergo
-	propter					# propter
-	hoc					# hoc
+        dum perlege nuntio fac sic              # while (<DATA>) {
+                scribe egresso hoc.             #       print $_;
+        cis                                     # }
+                                                #
+        finis                                   # __END__
+        post                                    # post
+        hoc                                     # hoc
+        ergo                                    # ergo
+        propter                                 # propter
+        hoc                                     # hoc
 
 
 =head2 Numbers 
 
 Numeric literals in Perligata are rendered by Roman numerals -- I<I>,
-I<II>, I<III>, I<IV>...I<XV>...I<XLII>, etc. However, the first 10
-numbers may also be referred to by name: I<unum>/I<unam>,
-I<duo>/I<duas>, I<tres>, I<quattuor>, I<quinque>, I<sex>, I<septem>,
-I<octo>, I<novem>, I<decem>. Zero, for which there is no Latin numeral,
-is rendered by I<nullum> ("no-one"). I<Nihil> ("nothing") might have
-been a closer rendering, but it is indeclinable and hence
-indistinguishable in the accusative and genitive.
+I<II>, I<III>, I<IV>...I<XV>...I<XLII>, etc, up to 
+I<(((((((I)))))))((((((((I))))))))((((((I))))))(((((((I)))))))(((((I)))))((((((I))))))((((I))))(((((I)))))(((I)))((((I))))((I))(((I)))M((I))CMXCIX>
+(that is: 9,999,999,999)
+
+The digits are:
+
+	       Roman			Arabic
+	       =====			======
+		 I		             1
+		 V		             5
+		 X		            10
+		 L	                    50
+		 C		           100
+		 D		           500
+	         M	                 1,000
+	         I))	                 5,000
+	       ((I))	                10,000
+	         I)))	                50,000
+	      (((I)))		       100,000
+	         I))))		       500,000
+	     ((((I))))		     1,000,000
+	         I)))))		     5,000,000
+	    (((((I)))))		    10,000,000
+	         I))))))	   500,000,000
+	   ((((((I))))))	 1,000,000,000
+	         I)))))))	 5,000,000,000
+	  (((((((I)))))))	10,000,000,000
+
+The value I<((I))> is 10,000 and every additional pair of I<apostrophi>
+(rendered as parentheses in ASCII) multiply that value by 10.
+
+Notice that those wacky Romans literally used "half" of each big number
+(e.g. I<I))>, I<I)))>, etc.) to represent half of each big numbers
+(i.e. 5000, 50000, etc.)
+
+The first 10 numbers may also be referred to by name:
+I<unum>/I<unam>, I<duo>/I<duas>, I<tres>, I<quattuor>, I<quinque>,
+I<sex>, I<septem>, I<octo>, I<novem>, I<decem>. Zero, for which there is
+no Latin numeral, is rendered by I<nullum> ("no-one"). I<Nihil>
+("nothing") might have been a closer rendering, but it is indeclinable
+and hence indistinguishable in the accusative and genitive.
 
 When a numeric literal is used in an indexing operation, it must be an
 ordinal: "zeroth (element)", "first (element)", "second (element)", etc.
@@ -1849,6 +1997,15 @@ not enforced in Perligata (to help minimize the number of suffixes that
 must be remembered), but Perligata I<does> accept the feminine forms.
 
 
+Perligata outputs numbers in Arabic, but the verb I<come> ("beautify")
+may be used to convert numbers to proper Roman numerals:
+
+        per quisque in I tum C conscribementum sic
+                hoc tum duos multiplicamentum comementum egresso scribe.
+        cis
+        
+
+
 =head2 Strings
 
 Classical Latin does not use punctuation to denote direct quotation.
@@ -1866,9 +2023,21 @@ becomes:
 
 Note that the arguments to I<inquementum> are special, in that they are
 treated as literals. Punctuation strings have special names, such as
-I<lacunam> ("a hole") for space, I<stadium> ("a stride") for tabspace, 
-I<novumversum> ("new verse") for newline, or I<biguttam> ("two spots") \
+I<lacunam> ("a hole") for space, I<stadium> ("a stride") for tabspace,
+I<novumversum> ("new verse") for newline, or I<biguttam> ("two spots")
 for colon.
+
+It is also possible to directly quote a series of characters (as if they
+were inside a C<q{...}>. The Perligata equivalent is a I<dictum sic...cis>:
+
+        sic Enter next word : cis dictum egresso scribe.
+
+or:
+
+        dictum sic Enter next word : cis egresso scribe.
+
+C<dictum> is, of course, a contraction of C<dicementum> ("the result of
+saying"), and Perligata allows this older form as well.
 
 Perligata does not provide an interpolated quotation mechanism. Instead,
 variables must be concatenated into a string. So:
@@ -1913,7 +2082,7 @@ For example:
 
         pato da desideratum                         # $pat = qr/(?x)
             C tum plurissimum A tum O opta tum T    #          C[AO]+T
-            an DOG tum potis GY.                    #          |DOG(?:GY)?/;
+            an DOG tum potissimum GY.               #          |DOG(?:GY)?/;
 
 Actual matching against a pattern will be done via the I<compara> ("match")
 and I<substitue> ("substitute") verbs:
@@ -2025,11 +2194,11 @@ the conjunction would appear in English. Thus:
 
 is rendered as:
 
-        resulto damentum valum parprimumque tum parsecundum maxementum.
+        resulto damentum valum parprimumve tum parsecundum maxementum.
 
 or:
 
-        resulto damentum valum maxementumque parprimum tum parsecundum.
+        resulto damentum valum maxementumve parprimum tum parsecundum.
 
 Proper Latinate comparisons would be odious in Perligata, because they
 require their first argument to be expressed in the nominative and would
@@ -2197,6 +2366,9 @@ and only the imperative for verbs.
         /            divide       "divide"
         %            recide       "lop off"
         **           eleva        "raise"
+        &            consocia     "unite"
+        |            interseca    "intersect"
+        ^            discerne     "differentiate (between)"
         ++           preincresce  "increase beforehand"
         ++           postincresce "increase afterwards"
         --           predecresce  "decrease beforehand"
@@ -2374,6 +2546,8 @@ and only the imperative for verbs.
         \            ad           "towards"
         =            da           "give"
         #...         adnota       "annotate"
+        (...         cum          "with"
+        to_roman     come         "beautify"
 
 
 
