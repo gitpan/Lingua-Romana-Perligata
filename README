@@ -1,0 +1,71 @@
+==============================================================================
+             Release of version 0.01 of Lingua::Romana::Perligata
+==============================================================================
+
+
+NOMEN
+
+    Lingua::Romana::Perligata -- Perl in Latin
+
+DESCRIPTIO
+
+    The Lingua::Romana::Perligata makes it makes it possible to write Perl
+    programs in Latin. (If you have to ask "Why?", then the answer probably
+    won't make any sense to you either.)
+
+    The linguistic principles behind Perligata are described in:
+
+            http://www.csse.monash.edu.au/~damian/papers/HTML/Perligata.html
+
+    The module is `use'd at the start of the program, and installs a filter
+    which allows the rest of the program to be written in (modified) Latin,
+    as described in the accompanying documentation.
+
+EXEMPLUM
+
+	#! /usr/bin/perl -w
+        use Lingua::Romana::Perligata;
+
+	adnota Illud Cribrum Eratothenis
+
+        maximum tum val inquementum tum biguttam tum stadium egresso scribe.
+        vestibulo perlegementum da meo maximo.
+        maximum tum novumversum egresso scribe.
+        da II tum maximum conscribementa meis listis.
+        dum damentum nexto listis decapitamentum fac sic
+               lista sic hoc tum nextum recidementum cis vannementa da listis.
+               next tum biguttam tum stadium tum nextum tum novumversum
+                        scribe egresso.
+        cis.
+
+
+SCRIPTOR
+
+    Damian Conway (damian@conway.org)
+
+
+IUS TRANSCRIBENDI
+
+    Copyright (c) 2000, Damian Conway. All Rights Reserved.
+
+    This module is free software. It may be used, redistributed and/or
+    modified under the terms of the Perl Artistic License
+    (see http://www.perl.com/perl/misc/Artistic.html)
+
+
+==============================================================================
+
+MUTATIONES IN EDITIO 0.01
+
+(No changes have been documented for this version)
+
+==============================================================================
+
+ADITUS
+
+Lingua::Romana::Perligata has been uploaded to the CPAN
+and is also available from:
+
+	http://www.csse.monash.edu.au/~damian/CPAN/Lingua-Romana-Perligata.tar.gz
+
+==============================================================================
